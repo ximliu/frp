@@ -21,20 +21,17 @@ import (
 	"sync"
 	"time"
 
-	"github.com/fatedier/frp/utils/log"
-
 	"github.com/fatedier/golib/pool"
 )
 
-type UdpPacket struct {
+type UDPPacket struct {
 	Buf        []byte
 	LocalAddr  net.Addr
 	RemoteAddr net.Addr
 }
 
-type FakeUdpConn struct {
-	log.Logger
-	l *UdpListener
+type FakeUDPConn struct {
+	l *UDPListener
 
 	localAddr  net.Addr
 	remoteAddr net.Addr
@@ -45,9 +42,8 @@ type FakeUdpConn struct {
 	mu         sync.RWMutex
 }
 
-func NewFakeUdpConn(l *UdpListener, laddr, raddr net.Addr) *FakeUdpConn {
-	fc := &FakeUdpConn{
-		Logger:     log.NewPrefixLogger(""),
+func NewFakeUDPConn(l *UDPListener, laddr, raddr net.Addr) *FakeUDPConn {
+	fc := &FakeUDPConn{
 		l:          l,
 		localAddr:  laddr,
 		remoteAddr: raddr,
@@ -69,7 +65,7 @@ func NewFakeUdpConn(l *UdpListener, laddr, raddr net.Addr) *FakeUdpConn {
 	return fc
 }
 
-func (c *FakeUdpConn) putPacket(content []byte) {
+func (c *FakeUDPConn) putPacket(content []byte) {
 	defer func() {
 		if err := recover(); err != nil {
 		}
@@ -81,7 +77,7 @@ func (c *FakeUdpConn) putPacket(content []byte) {
 	}
 }
 
-func (c *FakeUdpConn) Read(b []byte) (n int, err error) {
+func (c *FakeUDPConn) Read(b []byte) (n int, err error) {
 	content, ok := <-c.packets
 	if !ok {
 		return 0, io.EOF
@@ -99,7 +95,7 @@ func (c *FakeUdpConn) Read(b []byte) (n int, err error) {
 	return n, nil
 }
 
-func (c *FakeUdpConn) Write(b []byte) (n int, err error) {
+func (c *FakeUDPConn) Write(b []byte) (n int, err error) {
 	c.mu.RLock()
 	if c.closeFlag {
 		c.mu.RUnlock()
@@ -107,12 +103,12 @@ func (c *FakeUdpConn) Write(b []byte) (n int, err error) {
 	}
 	c.mu.RUnlock()
 
-	packet := &UdpPacket{
+	packet := &UDPPacket{
 		Buf:        b,
 		LocalAddr:  c.localAddr,
 		RemoteAddr: c.remoteAddr,
 	}
-	c.l.writeUdpPacket(packet)
+	c.l.writeUDPPacket(packet)
 
 	c.mu.Lock()
 	c.lastActive = time.Now()
@@ -120,7 +116,7 @@ func (c *FakeUdpConn) Write(b []byte) (n int, err error) {
 	return len(b), nil
 }
 
-func (c *FakeUdpConn) Close() error {
+func (c *FakeUDPConn) Close() error {
 	c.mu.Lock()
 	defer c.mu.Unlock()
 	if !c.closeFlag {
@@ -130,57 +126,54 @@ func (c *FakeUdpConn) Close() error {
 	return nil
 }
 
-func (c *FakeUdpConn) IsClosed() bool {
+func (c *FakeUDPConn) IsClosed() bool {
 	c.mu.RLock()
 	defer c.mu.RUnlock()
 	return c.closeFlag
 }
 
-func (c *FakeUdpConn) LocalAddr() net.Addr {
+func (c *FakeUDPConn) LocalAddr() net.Addr {
 	return c.localAddr
 }
 
-func (c *FakeUdpConn) RemoteAddr() net.Addr {
+func (c *FakeUDPConn) RemoteAddr() net.Addr {
 	return c.remoteAddr
 }
 
-func (c *FakeUdpConn) SetDeadline(t time.Time) error {
+func (c *FakeUDPConn) SetDeadline(t time.Time) error {
 	return nil
 }
 
-func (c *FakeUdpConn) SetReadDeadline(t time.Time) error {
+func (c *FakeUDPConn) SetReadDeadline(t time.Time) error {
 	return nil
 }
 
-func (c *FakeUdpConn) SetWriteDeadline(t time.Time) error {
+func (c *FakeUDPConn) SetWriteDeadline(t time.Time) error {
 	return nil
 }
 
-type UdpListener struct {
-	net.Addr
-	accept    chan Conn
-	writeCh   chan *UdpPacket
+type UDPListener struct {
+	addr      net.Addr
+	acceptCh  chan net.Conn
+	writeCh   chan *UDPPacket
 	readConn  net.Conn
 	closeFlag bool
 
-	fakeConns map[string]*FakeUdpConn
-
-	log.Logger
+	fakeConns map[string]*FakeUDPConn
 }
 
-func ListenUDP(bindAddr string, bindPort int) (l *UdpListener, err error) {
+func ListenUDP(bindAddr string, bindPort int) (l *UDPListener, err error) {
 	udpAddr, err := net.ResolveUDPAddr("udp", fmt.Sprintf("%s:%d", bindAddr, bindPort))
 	if err != nil {
 		return l, err
 	}
 	readConn, err := net.ListenUDP("udp", udpAddr)
 
-	l = &UdpListener{
-		Addr:      udpAddr,
-		accept:    make(chan Conn),
-		writeCh:   make(chan *UdpPacket, 1000),
-		fakeConns: make(map[string]*FakeUdpConn),
-		Logger:    log.NewPrefixLogger(""),
+	l = &UDPListener{
+		addr:      udpAddr,
+		acceptCh:  make(chan net.Conn),
+		writeCh:   make(chan *UDPPacket, 1000),
+		fakeConns: make(map[string]*FakeUDPConn),
 	}
 
 	// for reading
@@ -189,19 +182,19 @@ func ListenUDP(bindAddr string, bindPort int) (l *UdpListener, err error) {
 			buf := pool.GetBuf(1450)
 			n, remoteAddr, err := readConn.ReadFromUDP(buf)
 			if err != nil {
-				close(l.accept)
+				close(l.acceptCh)
 				close(l.writeCh)
 				return
 			}
 
 			fakeConn, exist := l.fakeConns[remoteAddr.String()]
 			if !exist || fakeConn.IsClosed() {
-				fakeConn = NewFakeUdpConn(l, l.Addr, remoteAddr)
+				fakeConn = NewFakeUDPConn(l, l.Addr(), remoteAddr)
 				l.fakeConns[remoteAddr.String()] = fakeConn
 			}
 			fakeConn.putPacket(buf[:n])
 
-			l.accept <- fakeConn
+			l.acceptCh <- fakeConn
 		}
 	}()
 
@@ -222,39 +215,44 @@ func ListenUDP(bindAddr string, bindPort int) (l *UdpListener, err error) {
 	return
 }
 
-func (l *UdpListener) writeUdpPacket(packet *UdpPacket) (err error) {
+func (l *UDPListener) writeUDPPacket(packet *UDPPacket) (err error) {
 	defer func() {
 		if errRet := recover(); errRet != nil {
 			err = fmt.Errorf("udp write closed listener")
-			l.Info("udp write closed listener")
 		}
 	}()
 	l.writeCh <- packet
 	return
 }
 
-func (l *UdpListener) WriteMsg(buf []byte, remoteAddr *net.UDPAddr) (err error) {
+func (l *UDPListener) WriteMsg(buf []byte, remoteAddr *net.UDPAddr) (err error) {
 	// only set remote addr here
-	packet := &UdpPacket{
+	packet := &UDPPacket{
 		Buf:        buf,
 		RemoteAddr: remoteAddr,
 	}
-	err = l.writeUdpPacket(packet)
+	err = l.writeUDPPacket(packet)
 	return
 }
 
-func (l *UdpListener) Accept() (Conn, error) {
-	conn, ok := <-l.accept
+func (l *UDPListener) Accept() (net.Conn, error) {
+	conn, ok := <-l.acceptCh
 	if !ok {
 		return conn, fmt.Errorf("channel for udp listener closed")
 	}
 	return conn, nil
 }
 
-func (l *UdpListener) Close() error {
+func (l *UDPListener) Close() error {
 	if !l.closeFlag {
 		l.closeFlag = true
-		l.readConn.Close()
+		if l.readConn != nil {
+			l.readConn.Close()
+		}
 	}
 	return nil
+}
+
+func (l *UDPListener) Addr() net.Addr {
+	return l.addr
 }

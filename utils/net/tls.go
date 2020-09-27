@@ -16,6 +16,7 @@ package net
 
 import (
 	"crypto/tls"
+	"fmt"
 	"net"
 	"time"
 
@@ -23,16 +24,16 @@ import (
 )
 
 var (
-	FRP_TLS_HEAD_BYTE = 0x17
+	FRPTLSHeadByte = 0x17
 )
 
-func WrapTLSClientConn(c net.Conn, tlsConfig *tls.Config) (out Conn) {
-	c.Write([]byte{byte(FRP_TLS_HEAD_BYTE)})
-	out = WrapConn(tls.Client(c, tlsConfig))
+func WrapTLSClientConn(c net.Conn, tlsConfig *tls.Config) (out net.Conn) {
+	c.Write([]byte{byte(FRPTLSHeadByte)})
+	out = tls.Client(c, tlsConfig)
 	return
 }
 
-func CheckAndEnableTLSServerConnWithTimeout(c net.Conn, tlsConfig *tls.Config, timeout time.Duration) (out Conn, err error) {
+func CheckAndEnableTLSServerConnWithTimeout(c net.Conn, tlsConfig *tls.Config, tlsOnly bool, timeout time.Duration) (out net.Conn, err error) {
 	sc, r := gnet.NewSharedConnSize(c, 2)
 	buf := make([]byte, 1)
 	var n int
@@ -43,10 +44,14 @@ func CheckAndEnableTLSServerConnWithTimeout(c net.Conn, tlsConfig *tls.Config, t
 		return
 	}
 
-	if n == 1 && int(buf[0]) == FRP_TLS_HEAD_BYTE {
-		out = WrapConn(tls.Server(c, tlsConfig))
+	if n == 1 && int(buf[0]) == FRPTLSHeadByte {
+		out = tls.Server(c, tlsConfig)
 	} else {
-		out = WrapConn(sc)
+		if tlsOnly {
+			err = fmt.Errorf("non-TLS connection received on a TlsOnly server")
+			return
+		}
+		out = sc
 	}
 	return
 }

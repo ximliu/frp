@@ -29,7 +29,7 @@ const (
 	TypeNewVisitorConnResp    = '3'
 	TypePing                  = 'h'
 	TypePong                  = '4'
-	TypeUdpPacket             = 'u'
+	TypeUDPPacket             = 'u'
 	TypeNatHoleVisitor        = 'i'
 	TypeNatHoleClient         = 'n'
 	TypeNatHoleResp           = 'm'
@@ -51,7 +51,7 @@ var (
 		TypeNewVisitorConnResp:    NewVisitorConnResp{},
 		TypePing:                  Ping{},
 		TypePong:                  Pong{},
-		TypeUdpPacket:             UdpPacket{},
+		TypeUDPPacket:             UDPPacket{},
 		TypeNatHoleVisitor:        NatHoleVisitor{},
 		TypeNatHoleClient:         NatHoleClient{},
 		TypeNatHoleResp:           NatHoleResp{},
@@ -62,14 +62,15 @@ var (
 
 // When frpc start, client send this message to login to server.
 type Login struct {
-	Version      string `json:"version"`
-	Hostname     string `json:"hostname"`
-	Os           string `json:"os"`
-	Arch         string `json:"arch"`
-	User         string `json:"user"`
-	PrivilegeKey string `json:"privilege_key"`
-	Timestamp    int64  `json:"timestamp"`
-	RunId        string `json:"run_id"`
+	Version      string            `json:"version"`
+	Hostname     string            `json:"hostname"`
+	Os           string            `json:"os"`
+	Arch         string            `json:"arch"`
+	User         string            `json:"user"`
+	PrivilegeKey string            `json:"privilege_key"`
+	Timestamp    int64             `json:"timestamp"`
+	RunID        string            `json:"run_id"`
+	Metas        map[string]string `json:"metas"`
 
 	// Some global configures.
 	PoolCount int `json:"pool_count"`
@@ -77,19 +78,20 @@ type Login struct {
 
 type LoginResp struct {
 	Version       string `json:"version"`
-	RunId         string `json:"run_id"`
-	ServerUdpPort int    `json:"server_udp_port"`
+	RunID         string `json:"run_id"`
+	ServerUDPPort int    `json:"server_udp_port"`
 	Error         string `json:"error"`
 }
 
 // When frpc login success, send this message to frps for running a new proxy.
 type NewProxy struct {
-	ProxyName      string `json:"proxy_name"`
-	ProxyType      string `json:"proxy_type"`
-	UseEncryption  bool   `json:"use_encryption"`
-	UseCompression bool   `json:"use_compression"`
-	Group          string `json:"group"`
-	GroupKey       string `json:"group_key"`
+	ProxyName      string            `json:"proxy_name"`
+	ProxyType      string            `json:"proxy_type"`
+	UseEncryption  bool              `json:"use_encryption"`
+	UseCompression bool              `json:"use_compression"`
+	Group          string            `json:"group"`
+	GroupKey       string            `json:"group_key"`
+	Metas          map[string]string `json:"metas"`
 
 	// tcp and udp only
 	RemotePort int `json:"remote_port"`
@@ -98,13 +100,16 @@ type NewProxy struct {
 	CustomDomains     []string          `json:"custom_domains"`
 	SubDomain         string            `json:"subdomain"`
 	Locations         []string          `json:"locations"`
-	HttpUser          string            `json:"http_user"`
-	HttpPwd           string            `json:"http_pwd"`
+	HTTPUser          string            `json:"http_user"`
+	HTTPPwd           string            `json:"http_pwd"`
 	HostHeaderRewrite string            `json:"host_header_rewrite"`
 	Headers           map[string]string `json:"headers"`
 
 	// stcp
 	Sk string `json:"sk"`
+
+	// tcpmux
+	Multiplexer string `json:"multiplexer"`
 }
 
 type NewProxyResp struct {
@@ -118,7 +123,9 @@ type CloseProxy struct {
 }
 
 type NewWorkConn struct {
-	RunId string `json:"run_id"`
+	RunID        string `json:"run_id"`
+	PrivilegeKey string `json:"privilege_key"`
+	Timestamp    int64  `json:"timestamp"`
 }
 
 type ReqWorkConn struct {
@@ -130,6 +137,7 @@ type StartWorkConn struct {
 	DstAddr   string `json:"dst_addr"`
 	SrcPort   uint16 `json:"src_port"`
 	DstPort   uint16 `json:"dst_port"`
+	Error     string `json:"error"`
 }
 
 type NewVisitorConn struct {
@@ -146,12 +154,15 @@ type NewVisitorConnResp struct {
 }
 
 type Ping struct {
+	PrivilegeKey string `json:"privilege_key"`
+	Timestamp    int64  `json:"timestamp"`
 }
 
 type Pong struct {
+	Error string `json:"error"`
 }
 
-type UdpPacket struct {
+type UDPPacket struct {
 	Content    string       `json:"c"`
 	LocalAddr  *net.UDPAddr `json:"l"`
 	RemoteAddr *net.UDPAddr `json:"r"`

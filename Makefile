@@ -1,4 +1,5 @@
 export PATH := $(GOPATH)/bin:$(PATH)
+export GO111MODULE=on
 
 all: fmt build
 
@@ -16,7 +17,7 @@ file:
 
 fmt:
 	go fmt ./...
-	
+
 frps:
 	go build -o bin/frps ./cmd/frps
 
@@ -36,7 +37,10 @@ gotest:
 ci:
 	go test -count=1 -p=1 -v ./tests/...
 
-alltest: gotest ci
+e2e:
+	./hack/run-e2e.sh
+
+alltest: gotest ci e2e
 	
 clean:
 	rm -f ./bin/frpc
